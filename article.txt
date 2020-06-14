@@ -1,0 +1,96 @@
+There are two kinds of directives, you can use in developemnt with angular
+
+[Structural directives](https://angular.io/guide/structural-directives) - works with DOM elements, adding or removing them
+[Attribute directives](https://angular.io/guide/attribute-directives) — works with elements attributes, changing its a appearance or behavior
+
+You can get detailed information about directives API from the docs above.
+
+It this article, I want to talk about, not API, but concrete business cases. And the ways in which you can effectively use the capabilities of the angular directives.
+
+## Structural directives
+
+Let's start, from the structural directives.
+
+We will create our own directive, which will handle a various states of the user (Anonymous, User, Admin) and show content appropriate to the state.
+
+First, we have to create a service which will provide an observable with different user states and capabilities to change them.
+Create two files. One for model with user statuses. Another for service
+
+**app/models/user-status.enum.ts
+```javascript
+export enum UserStatus {
+  ANONYMOUS = "ANONYMOUS",
+  USER = "USER",
+  ADMIN = "ADMIN",
+}
+```
+
+**app/services/user-status.service.ts**
+```javascript
+import { BehaviorSubject, Observable } from "rxjs";
+import { UserStatus } from "src/app/models/user-status.enum";
+
+export class UserStatusService {
+
+  private userStatusSource: BehaviorSubject<UserStatus> = new BehaviorSubject(null);
+  userStatus$: Observable<UserStatus> = this.userStatusSource.asObservable();
+
+  changeUserStatus(status): void {
+    this.userStatusSource.next(status);
+  }
+}
+```
+Of course, we can do something like this.
+```javascript
+changeUserStatus(status): void {
+  this.userStatusSource.next(status);
+}
+```
+
+Now, when we have a model and a service, we can implement our directive
+**app/directives/user-status/user-status.directive.ts**
+```javascript
+import { Directive, Input, EmbeddedViewRef, OnInit, OnDestroy, ViewContainerRef, TemplateRef } from "@angular/core";
+import { UserStatusService } from "src/app/services/user-status.service";
+import { Subject } from "rxjs";
+import { takeUntil, map } from "rxjs/operators";
+import { UserStatus } from "src/app/models/user-status.enum";
+
+@Directive({
+  selector: "[userStatus]"
+})
+export class UserStatusDirective implements OnInit, OnDestroy {
+  // input has the same name as directive selector.
+  // thanks to this we can write in this way - *userStatus="status"
+  @Input("userStatus") status: string;
+
+  private isDestroyed$: Subject<void> = new Subject();
+
+  constructor(
+    private userStatusService: UserStatusService,
+    private viewContainer: ViewContainerRef,
+    private templateRef: TemplateRef<any>,
+  ) { }
+
+  ngOnInit(): void {
+    this.userStatusService.userStatus$
+      .pipe(
+        map((userStatus: UserStatus) => userStatus === this.status),
+        takeUntil(this.isDestroyed$)
+      )
+      .subscribe((isPermitted: boolean) => {
+        if (isPermitted) {
+          this.viewContainer.createEmbeddedView(this.templateRef);
+        } else {
+          this.viewContainer.clear();
+        }
+      });
+  }
+
+  ngOnDestroy() {
+    this.isDestroyed$.next();
+    this.isDestroyed$.complete();
+  }
+}
+```
+Code above may seem unclear for you. So, i will explain it.

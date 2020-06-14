@@ -119,6 +119,10 @@
           }
         }
       }
-    }},
-  "defaultProject": "working-with-directives"
+    }
+  },
+  "defaultProject": "working-with-directives",
+  "cli": {
+    "analytics": false
+  }
 }
