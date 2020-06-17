@@ -15,9 +15,9 @@ export class UserStatusDirective implements OnInit, OnDestroy {
   private isDestroyed$: Subject<void> = new Subject();
 
   constructor(
-    private userStatusService: UserStatusService,
-    private viewContainer: ViewContainerRef, // 
-    private templateRef: TemplateRef<any>,
+    private userStatusService: UserStatusService, // service which holds state of user status
+    private viewContainer: ViewContainerRef, // container where our dynamically create view can be attached or not :)
+    private templateRef: TemplateRef<any>, // When we set directive on DOM element, angular wraps it with the ng-template tag under the hood
   ) { }
 
   ngOnInit(): void {
@@ -27,10 +27,14 @@ export class UserStatusDirective implements OnInit, OnDestroy {
         takeUntil(this.isDestroyed$)
       )
       .subscribe((isPermitted: boolean) => {
+        if (this.viewContainer.length) {
+          this.viewContainer.remove();
+        }
+
         if (isPermitted) {
           this.viewContainer.createEmbeddedView(this.templateRef);
         } else {
-          this.viewContainer.clear();
+          this.viewContainer.remove();
         }
       });
   }

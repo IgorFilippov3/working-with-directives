@@ -32,3 +32,5 @@ export class AppComponent {
     this.userStatusService.changeUserStatus(status);
   }
 }
+
+
