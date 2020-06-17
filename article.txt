@@ -1,11 +1,22 @@
-There are two kinds of directives, you can use in developemnt with angular
+It this article, I want to talk about, not API, but concrete business cases and the ways in which you can effectively use the capabilities of the angular directives.
 
-[Structural directives](https://angular.io/guide/structural-directives) - works with DOM elements, adding or removing them
-[Attribute directives](https://angular.io/guide/attribute-directives) — works with elements attributes, changing its a appearance or behavior
+There are two kinds of directives, you can use in development with angular.
+
+**HINT: Somebody also says that Components are directives too. This is true from a formal point of view, but not from a practical.**
+
++ [Structural directives](https://angular.io/guide/structural-directives) — works with DOM elements, adding or removing them.
++ [Attribute directives](https://angular.io/guide/attribute-directives) — allow you to add custom behavior to elements or change its appearance.
 
 You can get detailed information about directives API from the docs above.
 
-It this article, I want to talk about, not API, but concrete business cases. And the ways in which you can effectively use the capabilities of the angular directives.
+I assume that your already have **@angular/cli** installed.
+
+We will start from scratch. First create new project:
+
+```
+ng new working-with-directives
+cd working-with-directives
+```
 
 ## Structural directives
 
@@ -14,9 +25,10 @@ Let's start, from the structural directives.
 We will create our own directive, which will handle a various states of the user (Anonymous, User, Admin) and show content appropriate to the state.
 
 First, we have to create a service which will provide an observable with different user states and capabilities to change them.
+
 Create two files. One for model with user statuses. Another for service
 
-**app/models/user-status.enum.ts
+*app/models/user-status.enum.ts*
 ```javascript
 export enum UserStatus {
   ANONYMOUS = "ANONYMOUS",
@@ -25,7 +37,7 @@ export enum UserStatus {
 }
 ```
 
-**app/services/user-status.service.ts**
+*app/services/user-status.service.ts*
 ```javascript
 import { BehaviorSubject, Observable } from "rxjs";
 import { UserStatus } from "src/app/models/user-status.enum";
@@ -40,15 +52,8 @@ export class UserStatusService {
   }
 }
 ```
-Of course, we can do something like this.
-```javascript
-changeUserStatus(status): void {
-  this.userStatusSource.next(status);
-}
-```
-
 Now, when we have a model and a service, we can implement our directive
-**app/directives/user-status/user-status.directive.ts**
+*app/directives/user-status/user-status.directive.ts*
 ```javascript
 import { Directive, Input, EmbeddedViewRef, OnInit, OnDestroy, ViewContainerRef, TemplateRef } from "@angular/core";
 import { UserStatusService } from "src/app/services/user-status.service";
@@ -62,6 +67,7 @@ import { UserStatus } from "src/app/models/user-status.enum";
 export class UserStatusDirective implements OnInit, OnDestroy {
   // input has the same name as directive selector.
   // thanks to this we can write in this way - *userStatus="status"
+  // structural directives are always used with asterisk *
   @Input("userStatus") status: string;
 
   private isDestroyed$: Subject<void> = new Subject();
@@ -93,9 +99,9 @@ export class UserStatusDirective implements OnInit, OnDestroy {
   }
 }
 ```
-So, what are we doing here? In the ngOnInit lifecycle hook we are subscribing to user status state. Then, we compare current user status from service with user status transmitted via input. It they are equal we show current DOM element. If not - remove it from the DOM.
+So, what are we doing here? In the ngOnInit lifecycle hook we are subscribing to user status state. Then, we compare current user status from service with user status transmitted via input. If they are equal we show current DOM element. If not - remove it from the DOM.
 
-Let's check, is everything works as expected. But, before update **app/app.component.ts** file
+Let's check, is everything works as expected. But, before update *app/app.component.ts* file
 ```javascript
 import { Component } from '@angular/core';
 import { UserStatusService } from "src/app/services/user-status.service";
@@ -133,12 +139,13 @@ export class AppComponent {
   }
 }
 ```
-Run, the following CLI command. And open your browser at **localhost:4200**
+Run, the following CLI command. And open your browser at *localhost:4200*
 ```
 npm start
 ```
 
-Now, if we click button we will see an appropriate dom element on the screen. Everything looks good, but there is one problem. If we click twice on the same button, we will see that DOM element will be duplicated. This situation happens because directive do not know anything about attached view to the container. So, we have to fix it.
+Now, if we click button we will see an appropriate dom element on the screen. Everything looks good, but there is one problem. If we click twice on the same button, we will see that DOM element will be duplicated. This situation happens because directive does not know anything about attached view to the container. So, we have to fix it.
+
 If we look at **view_container_ref.d.ts**, we will find there a *length* getter. It is excatly what we are need!
 ```javascript
 export declare abstract class ViewContainerRef {
@@ -172,16 +179,16 @@ ngOnInit(): void {
   }
   ...
 ```
-Now, if our container have views attached to it, they will be removed. And only after this the main directive's logic happens. In this way we protect ourselves from unwanted duplicates in DOM. The only problem of this approach is perfomance. Anytime service produces a new value our DOM element will be removed and then inserted again.
+Now, if our container have views attached to it, they will be removed. And only after this the main directive's logic happens. In this way we protect ourselves from unwanted duplicates in DOM. The only problem of this approach is perfomance. Anytime service produces a new value our DOM element will be removed and then inserted again. This approach is suited for cases when you work with one or several elements, but not with the big list of items.
 
 ## Attribute directives
 
-Unlike structural directives, attribute directive do not change the DOM by adding or removing DOM elements. What attribute directive do, it changes the appearance or behavior of DOM element.
+Unlike structural directives, attribute directive do not change the DOM by adding or removing DOM elements. What attribute directive does, it changes the appearance or behavior of DOM element.
 
 In my example, we will create a directive which will help our DOM elements to handle a very specific case, when user press ctrl + enter buttons.
 
 Let's create a new file
-**app/directives/ctrl-enter/ctrl-enter.directive.ts**
+*app/directives/ctrl-enter/ctrl-enter.directive.ts*
 
 ```javascript
 import { Directive, Output, EventEmitter, HostListener, ElementRef } from "@angular/core";
@@ -203,12 +210,12 @@ export class CtrlEnterDirective {
 ```
 
 The logic is very simple. We are listening to the keydown events of the DOM element and check if these events are about ctrl and enter keys. After that, we emit the value.
-This logic is much simplier than our structural directive, but it shows how you can effectively ignore code duplication in your project.
+This logic is much simplier than in our structural directive, but it shows how you can effectively ignore code duplication in your project.
 
-By the way, if you have only one input at the page and yoy do not want to import ReactiveFormsModule or FormsModule, you can deal with it in the same fashion, with attribute directive.
+By the way, if you have only one input at the page and you do not want to import ReactiveFormsModule or FormsModule, you can deal with it in the same fashion, with attribute directive.
 
 Let's test our new directive and update the
-**app/app.component.ts**
+*app/app.component.ts*
 ```javascript
 import { Component } from '@angular/core';
 import { UserStatusService } from "src/app/services/user-status.service";
@@ -238,3 +245,5 @@ export class AppComponent {
 Now, if you focus on input, type something and press *ctrl + enter*, you should see a input value in the console.
 
 I hope this article was useful for you.
+
+P.S. Source code can be found at [github](https://github.com/IgorFilippov3/working-with-directives) .
